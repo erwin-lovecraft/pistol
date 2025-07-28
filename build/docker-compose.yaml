@@ -1,0 +1,36 @@
+services:
+  tool:
+    container_name: ${PROJECT_NAME}-tool
+    image: ${PROJECT_NAME}-local:latest
+    restart: "no"
+    ports:
+      - "8080:8080"
+    environment:
+      APP_PROJECT_NAME: "${PROJECT_NAME}"
+      APP_ENV: "${ENV}"
+      DB_URL: "postgres://pg:@${PROJECT_NAME}:5432/${PROJECT_NAME}"
+    volumes:
+      - ".:/app"
+      - "app-build-cache:/root/.cache/go-build"
+    networks:
+      - local-network
+
+  pg:
+    container_name: ${PROJECT_NAME}-pg
+    image: timescale/timescaledb:2.21.0-pg16
+    ports:
+      - "5432:5432"
+    environment:
+      TZ: UTC
+      POSTGRES_USER: ${PROJECT_NAME}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    networks:
+      - local-network
+
+volumes:
+  app-build-cache:
+    name: ${PROJECT_NAME}-app-build-cache
+
+networks:
+  local-network:
+    name: ${PROJECT_NAME}-local-network

@@ -1,0 +1,76 @@
+syntax = "proto3";
+package snippet;
+
+service SnippetService {
+  rpc CreateSnippet(CreateReq) returns (Snippet);
+
+  rpc GetSnippet(GetReq) returns (Snippet);
+
+  rpc UpdateSnippet(UpdateReq) returns (VersionInfo);
+
+  rpc DeleteSnippet(DeleteReq) returns (Empty);
+
+  rpc ListSnippets(ListReq) returns (ListResp);
+
+  // Version-specific
+  rpc GetVersion(GetVerReq) returns (VersionInfo);
+
+  rpc ListVersions(GetReq) returns (ListVerResp);
+
+  rpc DiffVersions(DiffReq) returns (DiffResp);
+}
+
+message Snippet {
+  string id = 1;
+  string title = 2;
+  string language = 3;
+  repeated string tags = 4;
+  repeated VersionInfo versions = 5; // có thể omit nếu nhiều
+}
+
+message VersionInfo {
+  int32 version = 1;
+  string content = 2;
+  string author = 3;
+  string created_at = 4;
+}
+
+message CreateReq {
+  string title = 1;
+  string language = 2;
+  string content = 3;
+  string author = 4;
+  repeated string tags = 5;
+}
+
+message GetReq {
+  string id = 1;
+}
+
+message UpdateReq {
+  string id = 1;
+  string content = 2;
+  string author = 3;
+}
+
+message DeleteReq {
+  string id = 1;
+}
+
+message ListReq {
+  int32 page = 1;
+  int64 size = 2;
+  string filter = 3;
+}
+
+message ListResp  {
+  repeated Snippet items = 1;
+  int32 total = 2;
+}
+
+// Version RPC
+message GetVerReq {string id; int32 version;}
+message ListVerResp {repeated VersionInfo versions;}
+message DiffReq   {string id; int32 v1, v2;}
+message DiffResp  {string diff_text;}
+message Empty {}
