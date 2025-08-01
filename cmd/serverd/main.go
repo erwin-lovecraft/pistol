@@ -47,7 +47,7 @@ func routes(hdl handler.Handler) http.Handler {
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Post("/rooms", hdl.CreateRoom())
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
-		v1.Post("/rooms/{roomID}/relay", hdl.Relay())
+		v1.Handle("/rooms/{roomID}/relay", hdl.Relay())
 	})
 
 	return r

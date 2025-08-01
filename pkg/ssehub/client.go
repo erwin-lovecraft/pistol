@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	heartbeatInterval = 1 * time.Second
+	heartbeatInterval = 25 * time.Second
 )
 
 type Client struct {
@@ -17,7 +17,7 @@ type Client struct {
 	room       string
 	ctx        context.Context
 	cancel     context.CancelFunc
-	sendCh     chan Event
+	sendCh     chan Payload
 	connected  time.Time
 	lastActive time.Time
 }
@@ -47,18 +47,24 @@ func (c *Client) writerLoop(w http.ResponseWriter, flusher http.Flusher) {
 	}
 }
 
-func writeEvent(w http.ResponseWriter, ev Event) {
+// writeEvent writes event payload to client
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+func writeEvent(w http.ResponseWriter, ev Payload) {
 	var err error
 	if ev.Event != "" {
 		_, err = fmt.Fprintf(w, "event: %s\n", ev.Event)
 	}
-
-	// split data by newline to follow SSE spec
-	for _, line := range splitLines(ev.Payload) {
+	for _, line := range splitLines(ev.Data) {
 		_, err = fmt.Fprintf(w, "data: %s\n", line)
 	}
-	_, err = fmt.Fprint(w, "\n")
+	if ev.ID != "" {
+		_, err = fmt.Fprintf(w, "id: %s\n", ev.ID)
+	}
+	if ev.Retry != 0 {
+		_, err = fmt.Fprintf(w, "retry: %d\n", ev.Retry)
+	}
 
+	_, err = fmt.Fprint(w, "\n")
 	if err != nil {
 		log.Printf("[SSE] Error writing data: %s", err)
 	}
@@ -90,9 +96,9 @@ func (c *Client) heartbeat() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			ev := Event{
-				Event:   "heartbeat",
-				Payload: fmt.Sprintf("heartbeat %d", time.Now().Unix()),
+			ev := Payload{
+				Event: EventTypeHeartbeat,
+				Data:  fmt.Sprintf("heartbeat %d", time.Now().Unix()),
 			}
 
 			select {

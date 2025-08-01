@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	sendBuffer = 64
+)
+
 func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w http.ResponseWriter) (*Client, error) {
 	// Setup SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -27,7 +31,7 @@ func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w htt
 		room:       room,
 		ctx:        ctx,
 		cancel:     cancel,
-		sendCh:     make(chan Event, 16), // buffered to absorb burst
+		sendCh:     make(chan Payload, sendBuffer), // buffered to absorb burst
 		connected:  time.Now(),
 		lastActive: time.Now(),
 	}

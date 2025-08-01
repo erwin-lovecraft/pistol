@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-func (h *Hub) SendToRoom(room string, e Event) error {
+func (h *Hub) SendToRoom(room string, e Payload) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 

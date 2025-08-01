@@ -75,8 +75,8 @@ func (s *service) Relay(ctx context.Context, roomID string, event domain.Event) 
 
 	// TODO: persist event payload
 
-	return s.hub.SendToRoom(roomID, ssehub.Event{
-		Event:   "relay",
-		Payload: string(payload),
+	return s.hub.SendToRoom(roomID, ssehub.Payload{
+		Event: "message",
+		Data:  string(payload),
 	})
 }

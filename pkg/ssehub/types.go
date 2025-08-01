@@ -4,9 +4,11 @@ import (
 	"sync"
 )
 
-type Event struct {
-	Event   string
-	Payload string
+type Payload struct {
+	Event string
+	Data  string
+	ID    string
+	Retry int64
 }
 
 type Hub struct {
