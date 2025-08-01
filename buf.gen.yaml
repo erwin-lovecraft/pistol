@@ -4,8 +4,8 @@ managed:
 
 plugins:
   - remote: buf.build/protocolbuffers/go
-    out: internal/proto
+    out: proto
     opt: paths=source_relative
 
 inputs:
-  - directory: internal/proto
+  - directory: proto

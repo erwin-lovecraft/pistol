@@ -2,7 +2,6 @@ module github.com/erwin-lovecraft/pistol
 
 go 1.24.5
 
-require (
-	connectrpc.com/connect v1.18.1
-	google.golang.org/protobuf v1.36.6
-)
+require github.com/google/uuid v1.6.0
+
+require github.com/go-chi/chi/v5 v5.2.2
