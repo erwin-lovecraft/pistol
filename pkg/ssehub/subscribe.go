@@ -13,6 +13,7 @@ func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w htt
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	flusher, ok := w.(http.Flusher)
@@ -21,7 +22,6 @@ func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w htt
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-
 	client := &Client{
 		id:         clientID,
 		room:       room,
@@ -40,7 +40,7 @@ func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w htt
 	h.rooms[room][clientID] = client
 	h.mu.Unlock()
 
-	log.Printf("[SSE] Subcribed %s", client)
+	log.Printf("[SSE] Subcribed %s, rooms size: %d", client, h.RoomConnections(room))
 
 	// Start writer goroutine
 	go client.writerLoop(w, flusher)

@@ -1,6 +1,7 @@
 package ssehub
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,8 +9,26 @@ import (
 )
 
 const (
-	heartbeatInterval = 25 * time.Second
+	heartbeatInterval = 1 * time.Second
 )
+
+type Client struct {
+	id         string
+	room       string
+	ctx        context.Context
+	cancel     context.CancelFunc
+	sendCh     chan Event
+	connected  time.Time
+	lastActive time.Time
+}
+
+func (c *Client) String() string {
+	return fmt.Sprintf("client[%s] room=%s", c.id, c.room)
+}
+
+func (c *Client) Wait() <-chan struct{} {
+	return c.ctx.Done()
+}
 
 func (c *Client) writerLoop(w http.ResponseWriter, flusher http.Flusher) {
 	// send initial comment to establish connection
@@ -29,15 +48,20 @@ func (c *Client) writerLoop(w http.ResponseWriter, flusher http.Flusher) {
 }
 
 func writeEvent(w http.ResponseWriter, ev Event) {
-	if ev.ID != "" {
-		fmt.Fprintf(w, "id: %s\n", ev.ID)
+	var err error
+	if ev.Event != "" {
+		_, err = fmt.Fprintf(w, "event: %s\n", ev.Event)
 	}
 
 	// split data by newline to follow SSE spec
 	for _, line := range splitLines(ev.Payload) {
-		fmt.Fprintf(w, "data: %s\n", line)
+		_, err = fmt.Fprintf(w, "data: %s\n", line)
 	}
-	fmt.Fprint(w, "\n")
+	_, err = fmt.Fprint(w, "\n")
+
+	if err != nil {
+		log.Printf("[SSE] Error writing data: %s", err)
+	}
 }
 
 func splitLines(s string) []string {
@@ -67,8 +91,10 @@ func (c *Client) heartbeat() {
 			return
 		case <-ticker.C:
 			ev := Event{
+				Event:   "heartbeat",
 				Payload: fmt.Sprintf("heartbeat %d", time.Now().Unix()),
 			}
+
 			select {
 			case c.sendCh <- ev:
 			default:
