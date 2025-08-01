@@ -1,27 +1,69 @@
-# Real-time Room Relay Service
--------
+# React + TypeScript + Vite
 
-1. Creating named rooms (UUID + link).
-2. Clients to subscribe to a room via Server-Sent Events (SSE).
-3. Any HTTP request sent to the room's relay endpoint to be broadcast as an event to all connected clients.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Primary use case: external systems or users post events into a room and subscribers receive them in real time.
+Currently, two official plugins are available:
 
-## Features
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-* `POST /rooms` : create a room by name; returns `room_id` and link.
-* `GET /rooms/{room_id}/events` : SSE stream for clients to receive events.
-* `POST /rooms/{room_id}/relay` : send arbitrary HTTP payload into the room; broadcast to subscribers.
-* In-memory room and client management.
-* JSON event schema with metadata.
+## Expanding the ESLint configuration
 
-## Architecture
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-* **Hub**: in-memory registry of rooms.
-* **Room**: holds active SSE clients and broadcasts events.
-* **Client**: SSE subscriber with buffered send channel and disconnect handling.
-* **Event**: normalized representation of incoming HTTP request including method, headers, body, source IP, timestamp, and UUID.
+```js
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
 
-## References
+      // Remove tseslint.configs.recommended and replace with this
+      ...tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      ...tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      ...tseslint.configs.stylisticTypeChecked,
 
-- https://html.spec.whatwg.org/multipage/server-sent-events.html
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
