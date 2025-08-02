@@ -19,6 +19,8 @@ var (
 type Service interface {
 	CreateRoom(ctx context.Context, name, avatar string) (domain.Room, string, error)
 
+	ListRoom(ctx context.Context) ([]domain.Room, error)
+
 	ListenEvents(ctx context.Context, roomID string, w http.ResponseWriter) (*ssehub.Client, error)
 
 	Relay(ctx context.Context, roomID string, event domain.Event) error
@@ -50,6 +52,10 @@ func (s *service) CreateRoom(ctx context.Context, name, avatar string) (domain.R
 	}
 
 	return room, buildRoomLink(room), nil
+}
+
+func (s *service) ListRoom(ctx context.Context) ([]domain.Room, error) {
+	return s.roomRepository.List(ctx, ports.RoomFilter{})
 }
 
 func buildRoomLink(room domain.Room) string {

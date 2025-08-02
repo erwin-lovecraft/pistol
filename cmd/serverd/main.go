@@ -14,6 +14,7 @@ import (
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 func main() {
@@ -43,9 +44,18 @@ func run(ctx context.Context) error {
 func routes(hdl handler.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Post("/rooms", hdl.CreateRoom())
+		v1.Get("/rooms", hdl.ListRoom())
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
 		v1.Handle("/rooms/{roomID}/relay", hdl.Relay())
 	})

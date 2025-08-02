@@ -54,6 +54,21 @@ func (h Handler) CreateRoom() http.HandlerFunc {
 	}
 }
 
+func (h Handler) ListRoom() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		rooms, err := h.svc.ListRoom(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(rooms); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
 func (h Handler) ListenEvents() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		roomID := chi.URLParam(r, "roomID")
