@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/erwin-lovecraft/pistol/internal/core/domain"
 	"github.com/erwin-lovecraft/pistol/internal/core/ports"
@@ -74,6 +75,18 @@ func (s *service) ListenEvents(ctx context.Context, roomID string, w http.Respon
 }
 
 func (s *service) Relay(ctx context.Context, roomID string, event domain.Event) error {
+	// Sanitize headers
+	for k := range event.Header {
+		if slices.Contains(secretHeaders, k) {
+			event.Header.Del(k)
+		}
+	}
+	for k := range event.QueryParams {
+		if slices.Contains(secretQueryParams, k) {
+			delete(event.QueryParams, k)
+		}
+	}
+
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)

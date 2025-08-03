@@ -114,9 +114,10 @@ func (h Handler) Relay() http.HandlerFunc {
 		}
 
 		if err := h.svc.Relay(r.Context(), roomID, domain.Event{
-			Method: r.Method,
-			Header: r.Header,
-			Body:   reqBody,
+			Method:      r.Method,
+			Header:      r.Header,
+			QueryParams: r.URL.Query(),
+			Body:        reqBody,
 		}); err != nil {
 			http.Error(w, "relay error", http.StatusInternalServerError)
 			return
@@ -138,6 +139,7 @@ func (h Handler) ViewRoom() http.HandlerFunc {
 			return
 		}
 
+		// Load template once
 		loadTemplates("internal/web")
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
