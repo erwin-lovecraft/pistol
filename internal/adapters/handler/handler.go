@@ -2,12 +2,20 @@ package handler
 
 import (
 	"encoding/json"
+	"html/template"
 	"io"
 	"net/http"
+	"path/filepath"
+	"sync"
 
 	"github.com/erwin-lovecraft/pistol/internal/core/domain"
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
 	"github.com/go-chi/chi/v5"
+)
+
+var (
+	viewTpl      *template.Template
+	loadViewSync sync.Once
 )
 
 type Handler struct {
@@ -120,4 +128,35 @@ func (h Handler) Relay() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
+}
+
+func (h Handler) ViewRoom() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		roomID := chi.URLParam(r, "roomID")
+		if roomID == "" {
+			http.Error(w, "roomID is required", http.StatusBadRequest)
+			return
+		}
+
+		loadTemplates("internal/web")
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := viewTpl.ExecuteTemplate(w, "template.html", map[string]string{
+			"RoomID": roomID,
+		}); err != nil {
+			http.Error(w, "failed to render template", http.StatusInternalServerError)
+		}
+	}
+}
+
+func loadTemplates(dir string) {
+	loadViewSync.Do(func() {
+		pattern := filepath.Join(dir, "*.html")
+		tpl, err := template.ParseGlob(pattern)
+		if err != nil {
+			panic(err)
+		}
+
+		viewTpl = tpl
+	})
 }

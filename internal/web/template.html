@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Room {{.RoomID}} - SSE Viewer</title>
+    <script src="https://unpkg.com/htmx.org@1.9.3"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+
+        #sidebar {
+            width: 300px;
+            border-right: 1px solid #ddd;
+            overflow: auto;
+        }
+
+        #detail {
+            flex: 1;
+            padding: 16px;
+            overflow: auto;
+        }
+
+        .message {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+
+        .message.active {
+            background: #f0f8ff;
+        }
+
+        .pre {
+            background: #f5f5f5;
+            padding: 8px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+<div id="sidebar">
+    <h3 style="margin:8px">Room {{.RoomID}}</h3>
+    <div id="messages"></div>
+</div>
+<div id="detail">
+    <h4>Message detail</h4>
+    <div id="detail-content">(click message to view)</div>
+</div>
+
+<script>
+    const roomID = encodeURIComponent("{{.RoomID}}");
+    const evtSource = new EventSource(`/api/v1/rooms/${roomID}/events`);
+    const messagesDiv = document.getElementById('messages');
+    const detailDiv = document.getElementById('detail-content');
+
+    function makeSidebarItem(msg) {
+        const el = document.createElement('div');
+        el.className = 'message';
+        el.dataset.id = msg.id;
+        el.innerHTML = `<div><strong>${msg.method}</strong> <small>${msg.id}</small></div>`;
+        el.addEventListener('click', () => {
+            document.querySelectorAll('.message').forEach(m => m.classList.remove('active'));
+            el.classList.add('active');
+            detailDiv.innerHTML = `<div><strong>Method:</strong> ${msg.method}</div>` +
+                `<div><strong>Headers:</strong><pre class='pre'>${JSON.stringify(msg.headers, null, 2)}</pre></div>` +
+                `<div><strong>Body:</strong><pre class='pre'>${JSON.stringify(msg.body, null, 2)}</pre></div>`;
+        });
+        return el;
+    }
+
+    evtSource.onmessage = function (e) {
+        try {
+            const data = JSON.parse(e.data);
+            const item = makeSidebarItem(data);
+            messagesDiv.prepend(item);
+        } catch (err) {
+            console.warn('failed parse', err, e.data);
+        }
+    };
+
+    evtSource.onerror = function (e) {
+        console.error('SSE error', e);
+    };
+</script>
+</body>
+</html>

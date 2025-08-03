@@ -53,6 +53,8 @@ func routes(hdl handler.Handler) http.Handler {
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))
 
+	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
+
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Post("/rooms", hdl.CreateRoom())
 		v1.Get("/rooms", hdl.ListRoom())
