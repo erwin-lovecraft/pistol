@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func run(ctx context.Context) error {
 	service := services.NewService(roomRepo)
 	hdl := handler.New(service)
 
+	log.Printf("listening on port %s", cfg.Port)
 	srv := http.Server{
 		Addr:        fmt.Sprintf(":%s", cfg.Port),
 		Handler:     routes(hdl),
@@ -52,12 +54,14 @@ func routes(hdl handler.Handler) http.Handler {
 		AllowCredentials: false,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))
+	r.Use(httprate.Limit(
+		100,
+		1*time.Second,
+		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint)),
+	)
 
 	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
-
 	r.Route("/api/v1", func(v1 chi.Router) {
-		v1.Post("/rooms", hdl.CreateRoom())
-		v1.Get("/rooms", hdl.ListRoom())
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
 		v1.Handle("/rooms/{roomID}/relay", hdl.Relay())
 	})
