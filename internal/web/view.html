@@ -3,6 +3,21 @@
 <head>
     <meta charset="UTF-8" />
     <title>Room {{.RoomID}} - SSE Viewer</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Pistol: lightweight room message viewer & push. SSE real-time observability with zero fluff." />
+    <meta name="theme-color" content="#f5f5f7" />
+
+    <!-- Open Graph / social preview -->
+    <meta property="og:title" content="Pistol — Minimalist Room Message Viewer" />
+    <meta property="og:description" content="Watch room messages in real-time via SSE and push new messages. Zero UI friction." />
+    <meta property="og:type" content="website" />
+    
+    <link rel="icon" href="/static/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Pistol" />
+    <meta name="application-name" content="Pistol" />
+    <link rel="manifest" href="/static/site.webmanifest" />
+
     <script src="https://unpkg.com/htmx.org@1.9.3"></script>
     <style>
         :root {

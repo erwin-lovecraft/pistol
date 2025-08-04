@@ -86,13 +86,14 @@ func routes(hdl handler.Handler) http.Handler {
 
 	r.Get("/healthz", healthz)
 	r.Get("/", hdl.Home())
-	r.Handle("/*", http.FileServer(http.FS(web.FS)))
+	r.Handle("/static/*", http.FileServer(http.FS(web.FS)))
 	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
 		v1.Get("/rooms/{roomID}", hdl.ListEvents())
 		v1.Handle("/rooms/{roomID}/push", pkgmiddleware.AuthKey(hdl.PushEvent()))
 	})
+	r.Handle("/*", hdl.NotFound())
 
 	return r
 }

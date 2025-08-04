@@ -2,12 +2,9 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"io"
 	"net/http"
-	"path/filepath"
-	"strings"
 
 	"github.com/erwin-lovecraft/pistol/internal/core/domain"
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
@@ -149,27 +146,11 @@ func (h Handler) Home() http.HandlerFunc {
 	}
 }
 
-func loadTemplates(dir string) (*template.Template, error) {
-	pattern := filepath.Join(dir, "*.html")
-	glob, err := template.ParseGlob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load templates: %w", err)
+func (h Handler) NotFound() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := webTpl.ExecuteTemplate(w, "notfound.html", nil); err != nil {
+			http.Error(w, "failed to render template", http.StatusInternalServerError)
+		}
 	}
-
-	return glob, nil
-}
-
-func deriveBaseURL(r *http.Request) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	} else if proto := r.Header.Get("X-Forwarded-Proto"); strings.EqualFold(proto, "https") {
-		scheme = "https"
-	}
-	host := r.Host
-	if host == "" {
-		host = "localhost:8080"
-	}
-	// ensure trailing slash
-	return scheme + "://" + host + "/"
 }
