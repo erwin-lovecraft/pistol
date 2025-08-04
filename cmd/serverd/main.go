@@ -12,10 +12,14 @@ import (
 	"github.com/erwin-lovecraft/pistol/internal/adapters/repository"
 	"github.com/erwin-lovecraft/pistol/internal/config"
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
+	"github.com/erwin-lovecraft/pistol/migrations"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 func main() {
@@ -28,11 +32,34 @@ func main() {
 func run(ctx context.Context) error {
 	cfg := config.ReadFromENV()
 
+	// Setup DB connections
+	dbPool, err := pgxpool.New(ctx, cfg.PGURL)
+	if err != nil {
+		return fmt.Errorf("create db connection: %w", err)
+	}
+	defer dbPool.Close()
+
+	// Setup migrations
+	goose.SetBaseFS(migrations.MigrationFS)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("goose set dialect: %w", err)
+	}
+	if err := goose.UpContext(ctx, stdlib.OpenDBFromPool(dbPool), "."); err != nil {
+		return fmt.Errorf("migrate up: %w", err)
+	}
+
+	// Setup ID generator
+	if err := repository.SetupIDGenerator(); err != nil {
+		return err
+	}
+
+	// DI settings
 	roomRepo := repository.NewInMemoryRoomRepository()
-	eventRepo := repository.NewInMemoryEventRepository()
+	eventRepo := repository.NewEventRepository(dbPool)
 	service := services.NewService(roomRepo, eventRepo)
 	hdl := handler.New(service)
 
+	// Start server
 	log.Printf("listening on port %s", cfg.Port)
 	srv := http.Server{
 		Addr:        fmt.Sprintf(":%s", cfg.Port),

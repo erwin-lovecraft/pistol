@@ -13,6 +13,7 @@ type Room struct {
 }
 
 type Event struct {
+	ID          int64               `json:"id"`
 	Method      string              `json:"method"`
 	Header      http.Header         `json:"header"`
 	QueryParams map[string][]string `json:"query_params"`

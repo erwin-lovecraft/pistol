@@ -2,104 +2,111 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"log"
-	"sync"
-	"time"
+	"net/http"
 
+	"github.com/erwin-lovecraft/pistol/internal/adapters/ormmodel"
 	"github.com/erwin-lovecraft/pistol/internal/core/domain"
 	"github.com/erwin-lovecraft/pistol/internal/core/ports"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var (
-	timeNowFunc     = time.Now
-	cleanupSchedule = 15 * time.Minute
-	defaultTTL      = time.Hour
-)
+var _ ports.EventRepository = (*eventRepository)(nil)
 
-var _ ports.EventRepository = (*InMemoryEventRepository)(nil)
-
-type InMemoryEventRepository struct {
-	cache sync.Map
+type eventRepository struct {
+	queries *ormmodel.Queries
 }
 
-func NewInMemoryEventRepository() *InMemoryEventRepository {
-	repo := InMemoryEventRepository{
-		cache: sync.Map{},
+func NewEventRepository(dbPool *pgxpool.Pool) ports.EventRepository {
+	return eventRepository{
+		queries: ormmodel.New(dbPool),
 	}
+}
 
-	go func() {
-		ticker := time.NewTicker(cleanupSchedule)
-		for {
-			select {
-			case <-ticker.C:
-				repo.cleanUp(defaultTTL)
-			}
+func (repo eventRepository) Save(ctx context.Context, roomID string, ev *domain.Event) error {
+	if ev.ID == 0 {
+		id, err := sf.NextID()
+		if err != nil {
+			return fmt.Errorf("generate id: %w", err)
 		}
-	}()
-
-	return &repo
-}
-
-func (i *InMemoryEventRepository) Save(ctx context.Context, roomID string, ev *domain.Event) error {
-	ev.CreatedAt = timeNowFunc().UTC()
-
-	data, ok := i.cache.Load(roomID)
-	if !ok || data == nil {
-		i.cache.Store(roomID, []domain.Event{*ev})
-		return nil
+		ev.ID = id
 	}
 
-	events, ok := data.([]domain.Event)
-	if !ok {
-		return errors.New("invalid events type")
+	var (
+		err             error
+		headerBytes     []byte
+		queryParamBytes []byte
+	)
+	if ev.Header != nil {
+		if headerBytes, err = json.Marshal(ev.Header); err != nil {
+			return fmt.Errorf("marshal header: %w", err)
+		}
+	}
+	if ev.QueryParams != nil {
+		if queryParamBytes, err = json.Marshal(ev.QueryParams); err != nil {
+			return fmt.Errorf("marshal query param: %w", err)
+		}
 	}
 
-	events = append(events, *ev)
-	i.cache.Store(roomID, events)
+	createdAt, err := repo.queries.SaveEvent(ctx, ormmodel.SaveEventParams{
+		ID:          ev.ID,
+		Method:      ev.Method,
+		Header:      headerBytes,
+		QueryParams: queryParamBytes,
+		Body:        ev.Body,
+	})
+	if err != nil {
+		return fmt.Errorf("save event: %w", err)
+	}
+	ev.CreatedAt = createdAt.Time
 	return nil
 }
 
-func (i *InMemoryEventRepository) List(ctx context.Context, roomID string, page, size int) ([]domain.Event, bool, error) {
-	data, ok := i.cache.Load(roomID)
-	if !ok || data == nil {
-		return nil, false, nil
-	}
-
-	events, ok := data.([]domain.Event)
-	if !ok {
-		return nil, false, errors.New("invalid data")
-	}
-
+func (repo eventRepository) List(ctx context.Context, roomID string, page, size int) ([]domain.Event, bool, error) {
 	offset := (page - 1) * size
-	hi := offset + size
-	if hi > len(events) {
-		hi = len(events)
+	limit := size
+
+	var pgRoomID pgtype.UUID
+	if err := pgRoomID.Scan(roomID); err != nil {
+		return nil, false, fmt.Errorf("scan room id: %w", err)
 	}
 
-	var rs []domain.Event
-	for idx := hi - 1; idx >= offset; idx-- {
-		rs = append(rs, events[idx])
+	models, err := repo.queries.ListEvents(ctx, ormmodel.ListEventsParams{
+		RoomID: pgRoomID,
+		Offset: int32(offset),
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return nil, false, fmt.Errorf("list events: %w", err)
 	}
 
-	return rs, offset+size < len(events), nil
-}
-
-func (i *InMemoryEventRepository) cleanUp(ttl time.Duration) {
-	log.Printf("[event_repository] cleaning up expired events")
-	now := timeNowFunc().UTC()
-
-	i.cache.Range(func(key, value interface{}) bool {
-		var retained []domain.Event
-		for _, ev := range value.([]domain.Event) {
-			if now.After(ev.CreatedAt.Add(ttl)) {
-				continue
-			}
-
-			retained = append(retained, ev)
+	events := make([]domain.Event, len(models))
+	for idx, model := range models {
+		var (
+			evHeader  http.Header
+			evQueries map[string][]string
+		)
+		if err := json.Unmarshal(model.Header, &evHeader); err != nil {
+			log.Printf("unmarshal header: %v", err)
+			continue
+		}
+		if err := json.Unmarshal(model.QueryParams, &evQueries); err != nil {
+			log.Printf("unmarshal query params: %v", err)
+			continue
 		}
 
-		i.cache.Store(key, retained)
-		return true
-	})
+		events[idx] = domain.Event{
+			ID:          model.ID,
+			Method:      model.Method,
+			Body:        model.Body,
+			Header:      evHeader,
+			QueryParams: evQueries,
+			CreatedAt:   model.CreatedAt.Time,
+		}
+	}
+
+	return events, true, nil
 }

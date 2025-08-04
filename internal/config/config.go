@@ -5,7 +5,8 @@ import (
 )
 
 type Config struct {
-	Port string
+	Port  string
+	PGURL string
 }
 
 func ReadFromENV() Config {
@@ -14,7 +15,10 @@ func ReadFromENV() Config {
 		port = "8080"
 	}
 
+	pgURL := os.Getenv("PG_URL")
+
 	return Config{
-		Port: port,
+		Port:  port,
+		PGURL: pgURL,
 	}
 }
