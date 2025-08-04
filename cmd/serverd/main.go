@@ -14,6 +14,7 @@ import (
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
 	"github.com/erwin-lovecraft/pistol/internal/web"
 	"github.com/erwin-lovecraft/pistol/migrations"
+	pkgmiddleware "github.com/erwin-lovecraft/pistol/pkg/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httprate"
@@ -90,7 +91,7 @@ func routes(hdl handler.Handler) http.Handler {
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
 		v1.Get("/rooms/{roomID}", hdl.ListEvents())
-		v1.Handle("/rooms/{roomID}/push", hdl.PushEvent())
+		v1.Handle("/rooms/{roomID}/push", pkgmiddleware.AuthKey(hdl.PushEvent()))
 	})
 
 	return r
