@@ -17,7 +17,7 @@ type Client struct {
 	room       string
 	ctx        context.Context
 	cancel     context.CancelFunc
-	sendCh     chan Payload
+	sendCh     chan Message
 	connected  time.Time
 	lastActive time.Time
 }
@@ -49,7 +49,7 @@ func (c *Client) writerLoop(w http.ResponseWriter, flusher http.Flusher) {
 
 // writeEvent writes event payload to client
 // https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
-func writeEvent(w http.ResponseWriter, ev Payload) {
+func writeEvent(w http.ResponseWriter, ev Message) {
 	var err error
 	if ev.Event != "" {
 		_, err = fmt.Fprintf(w, "event: %s\n", ev.Event)
@@ -96,7 +96,7 @@ func (c *Client) heartbeat() {
 		case <-c.ctx.Done():
 			return
 		case <-ticker.C:
-			ev := Payload{
+			ev := Message{
 				Event: EventTypeHeartbeat,
 				Data:  fmt.Sprintf("heartbeat %d", time.Now().Unix()),
 			}

@@ -31,7 +31,7 @@ func (h *Hub) Subscribe(ctx context.Context, room string, clientID string, w htt
 		room:       room,
 		ctx:        ctx,
 		cancel:     cancel,
-		sendCh:     make(chan Payload, sendBuffer), // buffered to absorb burst
+		sendCh:     make(chan Message, sendBuffer), // buffered to absorb burst
 		connected:  time.Now(),
 		lastActive: time.Now(),
 	}

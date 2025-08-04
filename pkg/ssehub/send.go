@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-func (h *Hub) SendToRoom(room string, e Payload) error {
+func (h *Hub) SendToRoom(room string, e Message) error {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -18,6 +18,22 @@ func (h *Hub) SendToRoom(room string, e Payload) error {
 		case cl.sendCh <- e:
 		default:
 			return errors.New("send channel is full")
+		}
+	}
+	return nil
+}
+
+func (h *Hub) Broadcast(e Message) error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for _, clients := range h.rooms {
+		for _, cl := range clients {
+			select {
+			case cl.sendCh <- e:
+			default:
+				return errors.New("send channel is full")
+			}
 		}
 	}
 	return nil

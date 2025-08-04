@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type Payload struct {
+type Message struct {
 	Event string
 	Data  string
 	ID    string
