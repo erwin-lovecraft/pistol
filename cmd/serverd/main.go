@@ -12,6 +12,7 @@ import (
 	"github.com/erwin-lovecraft/pistol/internal/adapters/repository"
 	"github.com/erwin-lovecraft/pistol/internal/config"
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
+	"github.com/erwin-lovecraft/pistol/internal/web"
 	"github.com/erwin-lovecraft/pistol/migrations"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -56,7 +57,10 @@ func run(ctx context.Context) error {
 	roomRepo := repository.NewInMemoryRoomRepository()
 	eventRepo := repository.NewEventRepository(dbPool)
 	service := services.NewService(roomRepo, eventRepo)
-	hdl := handler.New(service)
+	hdl, err := handler.New(service)
+	if err != nil {
+		return err
+	}
 
 	// Start server
 	log.Printf("listening on port %s", cfg.Port)
@@ -80,6 +84,8 @@ func routes(hdl handler.Handler) http.Handler {
 	)
 
 	r.Get("/healthz", healthz)
+	r.Get("/", hdl.Home())
+	r.Handle("/*", http.FileServer(http.FS(web.FS)))
 	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())

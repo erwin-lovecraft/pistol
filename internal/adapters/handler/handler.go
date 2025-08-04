@@ -2,11 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"path/filepath"
-	"sync"
+	"strings"
 
 	"github.com/erwin-lovecraft/pistol/internal/core/domain"
 	"github.com/erwin-lovecraft/pistol/internal/core/services"
@@ -14,18 +15,23 @@ import (
 )
 
 var (
-	tpl          *template.Template
-	loadViewSync sync.Once
+	webTpl *template.Template
 )
 
 type Handler struct {
 	svc services.Service
 }
 
-func New(svc services.Service) Handler {
+func New(svc services.Service) (Handler, error) {
+	tpl, err := loadTemplates("internal/web")
+	if err != nil {
+		return Handler{}, err
+	}
+	webTpl = tpl
+
 	return Handler{
 		svc: svc,
-	}
+	}, nil
 }
 
 func (h Handler) ListenEvents() http.HandlerFunc {
@@ -123,11 +129,8 @@ func (h Handler) ViewRoom() http.HandlerFunc {
 			return
 		}
 
-		// Load template once
-		loadTemplates("internal/web")
-
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := tpl.ExecuteTemplate(w, "view.html", map[string]string{
+		if err := webTpl.ExecuteTemplate(w, "view.html", map[string]string{
 			"RoomID": roomID,
 		}); err != nil {
 			http.Error(w, "failed to render template", http.StatusInternalServerError)
@@ -135,14 +138,38 @@ func (h Handler) ViewRoom() http.HandlerFunc {
 	}
 }
 
-func loadTemplates(dir string) {
-	loadViewSync.Do(func() {
-		pattern := filepath.Join(dir, "*.html")
-		globTpl, err := template.ParseGlob(pattern)
-		if err != nil {
-			panic(err)
+func (h Handler) Home() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := webTpl.ExecuteTemplate(w, "home.html", map[string]string{
+			"BaseURL": deriveBaseURL(r),
+		}); err != nil {
+			http.Error(w, "failed to render template", http.StatusInternalServerError)
 		}
+	}
+}
 
-		tpl = globTpl
-	})
+func loadTemplates(dir string) (*template.Template, error) {
+	pattern := filepath.Join(dir, "*.html")
+	glob, err := template.ParseGlob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load templates: %w", err)
+	}
+
+	return glob, nil
+}
+
+func deriveBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	} else if proto := r.Header.Get("X-Forwarded-Proto"); strings.EqualFold(proto, "https") {
+		scheme = "https"
+	}
+	host := r.Host
+	if host == "" {
+		host = "localhost:8080"
+	}
+	// ensure trailing slash
+	return scheme + "://" + host + "/"
 }

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <title>Pistol — Minimalist Webhook Receiver </title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Pistol: lightweight room message viewer & push. SSE real-time observability with zero fluff." />
+    <meta name="theme-color" content="#f5f5f7" />
+
+    <!-- Open Graph / social preview -->
+    <meta property="og:title" content="Pistol — Minimalist Room Message Viewer" />
+    <meta property="og:description" content="Watch room messages in real-time via SSE and push new messages. Zero UI friction." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{.BaseURL}}" />
+    <meta property="og:image" content="{{.BaseURL}}static/og-preview.png" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pistol — Minimalist Room Message Viewer" />
+    <meta name="twitter:description" content="Watch room messages in real-time via SSE and push new messages. Zero UI friction." />
+    <meta name="twitter:image" content="{{.BaseURL}}static/og-preview.png" />
+
+    <link rel="icon" href="/static/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Pistol" />
+    <meta name="application-name" content="Pistol" />
+    <link rel="manifest" href="/static/site.webmanifest" />
+    <style>
+        /* Minimal Apple HIG-inspired */
+        :root {
+            --bg:#f5f5f7;
+            --card:#ffffff;
+            --radius:14px;
+            --shadow:0 20px 40px -10px rgba(0,0,0,0.08);
+            --text:#1c1c1e;
+            --muted:#6e6e73;
+            font-family:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+        }
+        *{box-sizing:border-box;}
+        body{margin:0;background:var(--bg);color:var(--text);line-height:1.4;display:flex;flex-direction:column;min-height:100vh;}
+        header{padding:48px 24px;display:flex;justify-content:space-between;align-items:center;}
+        h1{margin:0;font-size:2rem;font-weight:600;}
+        .sub{margin-top:4px;font-size:0.95rem;color:var(--muted);}
+        main{flex:1;max-width:900px;margin:0 auto;padding:0 24px;}
+        .card{background:var(--card);border-radius:var(--radius);padding:32px;margin:24px 0;box-shadow:var(--shadow);}
+        pre{background:#f0f2f7;border-radius:8px;overflow:auto;padding:14px;font-family:SFMono-Regular,Menlo,monospace;font-size:0.9rem;}
+        code{font-family:SFMono-Regular,Menlo,monospace;background:rgba(60,60,67,0.04);padding:2px 4px;border-radius:4px;}
+        .inline-code{background:rgba(60,60,67,0.08);padding:2px 6px;border-radius:6px;font-size:0.9em;}
+        .section-title{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+        .btn{display:inline-block;padding:12px 20px;border-radius:12px;font-weight:600;text-decoration:none;cursor:pointer;}
+        .primary{background:#007aff;color:#fff;}
+        .code-box{position:relative;}
+        .note{background:rgba(255,235,205,0.6);padding:10px;border-radius:8px;font-size:0.85rem;margin-bottom:12px;}
+        footer{padding:24px;text-align:center;font-size:0.75rem;color:var(--muted);}
+    </style>
+</head>
+<body>
+<header>
+    <div>
+        <h1>Pistol</h1>
+        <div class="sub">Lightweight room messaging viewer & push. No fluff. Minimalist.</div>
+    </div>
+    <div><small>Quickstart • SSE • Push</small></div>
+</header>
+<main>
+    <div class="card">
+        <div class="section-title"><h2 style="margin:0;font-size:1.5rem;">1. Overview</h2></div>
+        <p>Watch real-time room messages via Server-Sent Events and push new messages into a room. Designed for developers who want zero friction observability / interaction.</p>
+        <ul>
+            <li><strong>View messages:</strong> <code class="inline-code">GET /rooms/{id}/views</code> (SSE)</li>
+            <li><strong>Push message:</strong> <code class="inline-code">POST /api/v1/rooms/{id}/push</code></li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <div class="section-title"><h2 style="margin:0;font-size:1.5rem;">2. Watch a room (SSE)</h2></div>
+        <p>Open a live stream of messages for a given room. Example JavaScript client:</p>
+        <pre><code>// replace ROOM_ID with actual ID
+const roomID = encodeURIComponent('ROOM_ID');
+const evt = new EventSource(`/api/v1/rooms/${roomID}/listen`);
+
+evt.onmessage = e =&gt; {
+  try {
+    const msg = JSON.parse(e.data);
+    console.log('incoming message', msg);
+    // render however you want
+  } catch (err) {
+    console.warn('malformed', e.data);
+  }
+};
+
+evt.onerror = err =&gt; {
+  console.error('SSE error', err);
+};
+</code></pre>
+        <p>Quick curl test (will keep connection open):</p>
+        <pre><code>curl -N https://pistol.onrender.com//api/v1/rooms/ROOM_ID/listen</code></pre>
+        <div class="note">Use <code class="inline-code">-N</code> to disable buffering so you see each event as it arrives.</div>
+    </div>
+
+    <div class="card">
+        <div class="section-title"><h2 style="margin:0;font-size:1.5rem;">3. Push a message into a room</h2></div>
+        <p>Send a JSON payload to the room. Example:</p>
+        <pre><code>POST /api/rooms/ROOM_ID/push
+Content-Type: application/json
+
+{
+  "method": "PATCH",
+  "header": {"x-trace-id": "abc123"},
+  "query_params": {"q": "test"},
+  "body": {"foo": "bar"}
+}</code></pre>
+        <p>curl example:</p>
+        <pre><code>curl -X POST https://your.host/api/rooms/ROOM_ID/push \
+  -H 'Content-Type: application/json' \
+  -d '{"method":"POST","header":{"from":"cli"},"query_params":{},"body":{"hello":"world"}}'</code></pre>
+    </div>
+
+</main>
+<footer>
+    Pistol • Minimal observer & push tool — built for developers. Keep it light.
+</footer>
+</body>
+</html>
