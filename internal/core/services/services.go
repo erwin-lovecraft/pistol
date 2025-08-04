@@ -18,24 +18,24 @@ var (
 )
 
 type Service interface {
-	CreateRoom(ctx context.Context, name, avatar string) (domain.Room, string, error)
-
-	ListRoom(ctx context.Context) ([]domain.Room, error)
-
 	ListenEvents(ctx context.Context, roomID string, w http.ResponseWriter) (*ssehub.Client, error)
 
 	PushEvent(ctx context.Context, roomID string, event domain.Event) error
+
+	ListEvents(ctx context.Context, roomID string, page int, size int) ([]domain.Event, bool, error)
 }
 
 type service struct {
-	hub            *ssehub.Hub
-	roomRepository ports.RoomRepository
+	hub             *ssehub.Hub
+	roomRepository  ports.RoomRepository
+	eventRepository ports.EventRepository
 }
 
-func NewService(roomRepository ports.RoomRepository) Service {
+func NewService(roomRepository ports.RoomRepository, eventRepository ports.EventRepository) Service {
 	return &service{
-		roomRepository: roomRepository,
-		hub:            ssehub.NewHub(),
+		hub:             ssehub.NewHub(),
+		eventRepository: eventRepository,
+		roomRepository:  roomRepository,
 	}
 }
 
@@ -92,10 +92,22 @@ func (s *service) PushEvent(ctx context.Context, roomID string, event domain.Eve
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// TODO: persist event payload
+	// Persist event
+	if err := s.eventRepository.Save(ctx, roomID, event); err != nil {
+		return fmt.Errorf("failed to save event: %w", err)
+	}
 
 	return s.hub.SendToRoom(roomID, ssehub.Message{
 		Event: "message",
 		Data:  string(payload),
 	})
+}
+
+func (s *service) ListEvents(ctx context.Context, roomID string, page int, size int) ([]domain.Event, bool, error) {
+	rs, hasMore, err := s.eventRepository.List(ctx, roomID, page, size)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return rs, hasMore, nil
 }

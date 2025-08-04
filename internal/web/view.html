@@ -101,6 +101,36 @@
     };
 
     evtSource.onerror = function(e) { console.error('SSE error', e); };
+
+    // initial fetch of existing messages
+    async function fetchInitialMessages(page, size) {
+        try {
+            const resp = await fetch(`/api/v1/rooms/${roomID}?` + new URLSearchParams({
+                page: page,
+                size: size,
+            }));
+            if (!resp.ok) {
+                console.warn('failed to load initial messages', resp.status);
+                return;
+            }
+            const body = await resp.json();
+            if (!body || !Array.isArray(body.data)) {
+                console.warn('unexpected initial payload shape', body);
+                return;
+            }
+            // assume body.data is chronological older -> newer; append so newest is at bottom,
+            // real-time SSE will prepend above.
+            for (const msg of body.data) {
+                if (!msg) continue;
+                const item = makeSidebarItem(msg);
+                messagesDiv.appendChild(item);
+            }
+        } catch (err) {
+            console.error('error fetching initial messages', err);
+        }
+    }
+
+    fetchInitialMessages(1, 100)
 </script>
 </body>
 </html>

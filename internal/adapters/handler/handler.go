@@ -28,55 +28,6 @@ func New(svc services.Service) Handler {
 	}
 }
 
-func (h Handler) CreateRoom() http.HandlerFunc {
-	type request struct {
-		Name   string `json:"name"`
-		Avatar string `json:"avatar"`
-	}
-
-	type response struct {
-		ID   string `json:"id"`
-		Link string `json:"link"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req request
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		room, link, err := h.svc.CreateRoom(r.Context(), req.Name, req.Avatar)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(response{
-			ID:   room.ID,
-			Link: link,
-		}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
-
-func (h Handler) ListRoom() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		rooms, err := h.svc.ListRoom(r.Context())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(rooms); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-}
-
 func (h Handler) ListenEvents() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		roomID := chi.URLParam(r, "roomID")
@@ -92,6 +43,39 @@ func (h Handler) ListenEvents() http.HandlerFunc {
 		}
 
 		<-cl.Wait()
+	}
+}
+
+func (h Handler) ListEvents() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		roomID := chi.URLParam(r, "roomID")
+		if roomID == "" {
+			http.Error(w, "roomID is required", http.StatusBadRequest)
+			return
+		}
+
+		var pagination Pagination
+		if err := pagination.FromRequest(r); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		rs, hasMore, err := h.svc.ListEvents(r.Context(), roomID, pagination.Page, pagination.Size)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
+			"data":    rs,
+			"page":    pagination.Page,
+			"size":    pagination.Size,
+			"hasMore": hasMore,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 

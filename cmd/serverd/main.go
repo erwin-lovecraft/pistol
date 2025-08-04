@@ -29,7 +29,8 @@ func run(ctx context.Context) error {
 	cfg := config.ReadFromENV()
 
 	roomRepo := repository.NewInMemoryRoomRepository()
-	service := services.NewService(roomRepo)
+	eventRepo := repository.NewInMemoryEventRepository()
+	service := services.NewService(roomRepo, eventRepo)
 	hdl := handler.New(service)
 
 	log.Printf("listening on port %s", cfg.Port)
@@ -64,6 +65,7 @@ func routes(hdl handler.Handler) http.Handler {
 	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
+		v1.Get("/rooms/{roomID}", hdl.ListEvents())
 		v1.Handle("/rooms/{roomID}/push", hdl.PushEvent())
 	})
 
