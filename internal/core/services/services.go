@@ -90,14 +90,15 @@ func (s *service) PushEvent(ctx context.Context, roomID string, event domain.Eve
 		event.Body = []byte("{}") // Initial default value for body
 	}
 
+	// Save event
+	if err := s.eventRepository.Save(ctx, roomID, &event); err != nil {
+		return fmt.Errorf("failed to save event: %w", err)
+	}
+
+	// Prepare message to send to SSE client
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-
-	// Persist event
-	if err := s.eventRepository.Save(ctx, roomID, &event); err != nil {
-		return fmt.Errorf("failed to save event: %w", err)
 	}
 
 	return s.hub.SendToRoom(roomID, ssehub.Message{

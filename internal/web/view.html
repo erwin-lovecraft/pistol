@@ -42,6 +42,7 @@
 <div id="sidebar">
     <h3 style="margin:8px">Room {{.RoomID}}</h3>
     <div id="messages"></div>
+    <div id="load-more-sentinel" style="height:1px;"></div>
 </div>
 <div id="detail">
     <h4>Message detail</h4>
@@ -53,6 +54,13 @@
     const evtSource = new EventSource(`/api/v1/rooms/${roomID}/events`);
     const messagesDiv = document.getElementById('messages');
     const detailDiv = document.getElementById('detail-content');
+    const sentinel = document.getElementById('load-more-sentinel');
+
+    let currentPage = 1;
+    const pageSize = 50;
+    let isLoading = false;
+    let noMore = false;
+    const seenIds = new Set(); // dedupe
 
     function renderKVTable(obj) {
         if (!obj || Object.keys(obj).length === 0) {
@@ -72,7 +80,10 @@
         return html;
     }
 
-    function makeSidebarItem(msg) {
+    function makeSidebarItem(msg, prepend = false) {
+        if (seenIds.has(msg.id)) return null; // skip duplicate
+        seenIds.add(msg.id);
+
         const el = document.createElement('div');
         el.className = 'message';
         el.dataset.id = msg.id;
@@ -87,14 +98,18 @@
                 `<div style="margin-top:8px"><strong style="font-size:0.9rem;">Query params:</strong>${queryParamsHTML}</div>` +
                 `<div style="margin-top:8px"><strong style="font-size:0.9rem;">Body:</strong><pre class='pre' style="font-size:0.75rem;">${JSON.stringify(msg.body, null, 2)}</pre></div>`;
         });
+        if (prepend) {
+            messagesDiv.prepend(el);
+        } else {
+            messagesDiv.appendChild(el);
+        }
         return el;
     }
 
     evtSource.onmessage = function(e) {
         try {
             const data = JSON.parse(e.data);
-            const item = makeSidebarItem(data);
-            messagesDiv.prepend(item);
+            makeSidebarItem(data, true); // real-time newest on top
         } catch (err) {
             console.warn('failed parse', err, e.data);
         }
@@ -102,35 +117,77 @@
 
     evtSource.onerror = function(e) { console.error('SSE error', e); };
 
-    // initial fetch of existing messages
-    async function fetchInitialMessages(page, size) {
+    async function fetchMessages(page, size) {
+        const resp = await fetch(`/api/v1/rooms/${roomID}?` + new URLSearchParams({
+            page: page,
+            size: size,
+        }));
+        if (!resp.ok) {
+            throw new Error(`status ${resp.status}`);
+        }
+        const body = await resp.json();
+        if (!body || !Array.isArray(body.data)) {
+            throw new Error('unexpected payload shape');
+        }
+        return body.data;
+    }
+
+    async function loadOlder() {
+        if (isLoading || noMore) return;
+        isLoading = true;
         try {
-            const resp = await fetch(`/api/v1/rooms/${roomID}?` + new URLSearchParams({
-                page: page,
-                size: size,
-            }));
-            if (!resp.ok) {
-                console.warn('failed to load initial messages', resp.status);
+            currentPage += 1;
+            const older = await fetchMessages(currentPage, pageSize);
+            if (!older.length) {
+                noMore = true;
                 return;
             }
-            const body = await resp.json();
-            if (!body || !Array.isArray(body.data)) {
-                console.warn('unexpected initial payload shape', body);
-                return;
-            }
-            // assume body.data is chronological older -> newer; append so newest is at bottom,
-            // real-time SSE will prepend above.
-            for (const msg of body.data) {
+            // assume older messages are chronologically before those already loaded,
+            // so append at bottom.
+            for (const msg of older) {
                 if (!msg) continue;
-                const item = makeSidebarItem(msg);
-                messagesDiv.appendChild(item);
+                makeSidebarItem(msg, false);
+            }
+            // if returned less than requested, we likely exhausted.
+            if (older.length < pageSize) {
+                noMore = true;
             }
         } catch (err) {
-            console.error('error fetching initial messages', err);
+            console.warn('failed loading older messages', err);
+            currentPage -= 1; // rollback page on failure
+        } finally {
+            isLoading = false;
         }
     }
 
-    fetchInitialMessages(1, 100)
+    // initial load
+    (async () => {
+        try {
+            const initial = await fetchMessages(currentPage, pageSize);
+            for (const msg of initial) {
+                if (!msg) continue;
+                makeSidebarItem(msg, false);
+            }
+            if (initial.length < pageSize) noMore = true;
+        } catch (err) {
+            console.error('error fetching initial messages', err);
+        }
+    })();
+
+    // intersection observer for infinite scroll (when sentinel comes into view -> load older)
+    const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) {
+                loadOlder();
+            }
+        }
+    }, {
+        root: document.getElementById('sidebar'),
+        rootMargin: '0px',
+        threshold: 1.0,
+    });
+    observer.observe(sentinel);
+
 </script>
 </body>
 </html>
