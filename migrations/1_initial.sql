@@ -2,9 +2,9 @@
 CREATE TABLE IF NOT EXISTS "events" (
     "id" BIGINT PRIMARY KEY,
     "method" TEXT NOT NULL,
-    "header" JSON NOT NULL DEFAULT '{}',
-    "query_params" JSON NOT NULL DEFAULT '{}',
-    "body" JSON NOT NULL DEFAULT '{}',
+    "header" JSON NULL,
+    "query_params" JSON NULL,
+    "body" JSON NULL,
     "created_at" TIMESTAMPTZ DEFAULT 'NOW()',
     "room_id" UUID NOT NULL
 );

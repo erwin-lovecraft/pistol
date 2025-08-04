@@ -86,6 +86,9 @@ func (s *service) PushEvent(ctx context.Context, roomID string, event domain.Eve
 			delete(event.QueryParams, k)
 		}
 	}
+	if len(event.Body) == 0 {
+		event.Body = []byte("{}") // Initial default value for body
+	}
 
 	payload, err := json.Marshal(event)
 	if err != nil {

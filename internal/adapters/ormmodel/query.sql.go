@@ -50,12 +50,13 @@ func (q *Queries) ListEvents(ctx context.Context, arg ListEventsParams) ([]Event
 }
 
 const saveEvent = `-- name: SaveEvent :one
-INSERT INTO events (id, method, header, query_params, body)
-VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO
+INSERT INTO events (id, method, header, query_params, body, room_id)
+VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO
 UPDATE SET method = EXCLUDED.method,
     header = EXCLUDED.header,
     query_params = EXCLUDED.query_params,
-    body = EXCLUDED.body
+    body = EXCLUDED.body,
+    room_id = EXCLUDED.room_id
 RETURNING created_at
 `
 
@@ -65,6 +66,7 @@ type SaveEventParams struct {
 	Header      []byte
 	QueryParams []byte
 	Body        []byte
+	RoomID      pgtype.UUID
 }
 
 func (q *Queries) SaveEvent(ctx context.Context, arg SaveEventParams) (pgtype.Timestamptz, error) {
@@ -74,6 +76,7 @@ func (q *Queries) SaveEvent(ctx context.Context, arg SaveEventParams) (pgtype.Ti
 		arg.Header,
 		arg.QueryParams,
 		arg.Body,
+		arg.RoomID,
 	)
 	var created_at pgtype.Timestamptz
 	err := row.Scan(&created_at)

@@ -51,12 +51,18 @@ func (repo eventRepository) Save(ctx context.Context, roomID string, ev *domain.
 		}
 	}
 
+	var pgRoomID pgtype.UUID
+	if err := pgRoomID.Scan(roomID); err != nil {
+		return fmt.Errorf("scan room id: %w", err)
+	}
+
 	createdAt, err := repo.queries.SaveEvent(ctx, ormmodel.SaveEventParams{
 		ID:          ev.ID,
 		Method:      ev.Method,
 		Header:      headerBytes,
 		QueryParams: queryParamBytes,
 		Body:        ev.Body,
+		RoomID:      pgRoomID,
 	})
 	if err != nil {
 		return fmt.Errorf("save event: %w", err)
