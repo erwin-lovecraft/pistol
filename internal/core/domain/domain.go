@@ -3,6 +3,7 @@ package domain
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 type Room struct {
@@ -16,4 +17,5 @@ type Event struct {
 	Header      http.Header         `json:"header"`
 	QueryParams map[string][]string `json:"query_params"`
 	Body        json.RawMessage     `json:"body,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
 }

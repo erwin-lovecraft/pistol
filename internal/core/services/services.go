@@ -93,7 +93,7 @@ func (s *service) PushEvent(ctx context.Context, roomID string, event domain.Eve
 	}
 
 	// Persist event
-	if err := s.eventRepository.Save(ctx, roomID, event); err != nil {
+	if err := s.eventRepository.Save(ctx, roomID, &event); err != nil {
 		return fmt.Errorf("failed to save event: %w", err)
 	}
 
