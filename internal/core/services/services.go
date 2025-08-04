@@ -24,7 +24,7 @@ type Service interface {
 
 	ListenEvents(ctx context.Context, roomID string, w http.ResponseWriter) (*ssehub.Client, error)
 
-	Relay(ctx context.Context, roomID string, event domain.Event) error
+	PushEvent(ctx context.Context, roomID string, event domain.Event) error
 }
 
 type service struct {
@@ -74,7 +74,7 @@ func (s *service) ListenEvents(ctx context.Context, roomID string, w http.Respon
 	return cl, nil
 }
 
-func (s *service) Relay(ctx context.Context, roomID string, event domain.Event) error {
+func (s *service) PushEvent(ctx context.Context, roomID string, event domain.Event) error {
 	// Sanitize headers
 	for k := range event.Header {
 		if slices.Contains(secretHeaders, k) {

@@ -60,17 +60,19 @@ func routes(hdl handler.Handler) http.Handler {
 		httprate.WithKeyFuncs(httprate.KeyByIP, httprate.KeyByEndpoint)),
 	)
 
-	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	r.Get("/healthz", healthz)
 	r.Get("/rooms/{roomID}/views", hdl.ViewRoom())
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Get("/rooms/{roomID}/events", hdl.ListenEvents())
-		v1.Handle("/rooms/{roomID}/relay", hdl.Relay())
+		v1.Handle("/rooms/{roomID}/push", hdl.PushEvent())
 	})
 
 	return r
+}
+
+func healthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	viewTpl      *template.Template
+	tpl          *template.Template
 	loadViewSync sync.Once
 )
 
@@ -95,7 +95,7 @@ func (h Handler) ListenEvents() http.HandlerFunc {
 	}
 }
 
-func (h Handler) Relay() http.HandlerFunc {
+func (h Handler) PushEvent() http.HandlerFunc {
 	type response struct {
 		Message string `json:"message"`
 	}
@@ -113,7 +113,7 @@ func (h Handler) Relay() http.HandlerFunc {
 			return
 		}
 
-		if err := h.svc.Relay(r.Context(), roomID, domain.Event{
+		if err := h.svc.PushEvent(r.Context(), roomID, domain.Event{
 			Method:      r.Method,
 			Header:      r.Header,
 			QueryParams: r.URL.Query(),
@@ -143,7 +143,7 @@ func (h Handler) ViewRoom() http.HandlerFunc {
 		loadTemplates("internal/web")
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := viewTpl.ExecuteTemplate(w, "template.html", map[string]string{
+		if err := tpl.ExecuteTemplate(w, "view.html", map[string]string{
 			"RoomID": roomID,
 		}); err != nil {
 			http.Error(w, "failed to render template", http.StatusInternalServerError)
@@ -154,11 +154,11 @@ func (h Handler) ViewRoom() http.HandlerFunc {
 func loadTemplates(dir string) {
 	loadViewSync.Do(func() {
 		pattern := filepath.Join(dir, "*.html")
-		tpl, err := template.ParseGlob(pattern)
+		globTpl, err := template.ParseGlob(pattern)
 		if err != nil {
 			panic(err)
 		}
 
-		viewTpl = tpl
+		tpl = globTpl
 	})
 }
